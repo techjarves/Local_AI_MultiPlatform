@@ -7,6 +7,7 @@ import 'package:llamadart/llamadart.dart';
 
 import 'chat_storage_service.dart';
 import 'llm_service.dart';
+import 'wakelock_service.dart';
 
 class LocalApiServerService extends GetxService {
   static const defaultHost = '127.0.0.1';
@@ -68,6 +69,11 @@ class LocalApiServerService extends GetxService {
       _storage.localApiServerEnabled = true;
       isRunning.value = true;
 
+      try {
+        final wakelockService = Get.find<WakelockService>();
+        await wakelockService.enableForInference();
+      } catch (_) {}
+
       unawaited(
         _server!
             .listen(
@@ -99,6 +105,10 @@ class LocalApiServerService extends GetxService {
     if (persist) {
       _storage.localApiServerEnabled = false;
     }
+    try {
+      final wakelockService = Get.find<WakelockService>();
+      await wakelockService.disable();
+    } catch (_) {}
   }
 
   Future<void> setPort(int nextPort) async {
@@ -577,8 +587,8 @@ class LocalApiServerService extends GetxService {
   String _completionId() => 'chatcmpl-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
-  void onClose() {
-    stop();
+  Future<void> onClose() async {
+    await stop();
     super.onClose();
   }
 }
